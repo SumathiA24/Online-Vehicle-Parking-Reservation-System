@@ -1,0 +1,89 @@
+2.app.py (Backend Server): python
+from flask import Flask, request, jsonify, render_template import sqlite3
+app = Flask(	name	)
+def init_db():
+conn = sqlite3.connect('parking.db') cursor = conn.cursor() cursor.execute
+
+('''
+
+CREATE TABLE IF NOT EXISTS slots ( id INTEGER PRIMARY KEY,
+slot_number TEXT NOT NULL, is_reserved INTEGER DEFAULT 0
+)
+''')
+
+conn.commit() conn.close() app.route('/') def index():
+return render_template('index.html') app.route('/slots', methods=['GET']) def get_slots():
+conn = sqlite3.connect('parking.db') cursor = conn.cursor() cursor.execute('SELECT * FROM slots') slots = cursor.fetchall()
+conn.close()
+return jsonify(slots)
+
+app.route('/reserve', methods=['POST']) def reserve_slot():
+slot_id = request.form['slot_id'] conn = sqlite3.connect('parking.db') cursor = conn.cursor()
+cursor.execute('UPDATE slots SET is_reserved = 1 WHERE id = ?', (slot_id,)) conn.commit()
+conn.close()
+return 'Reservation successful', 200 app.route('/cancel', methods=['POST']) def cancel_reservation():
+slot_id = request.form['slot_id'] conn = sqlite3.connect('parking.db') cursor = conn.cursor()
+cursor.execute('UPDATE slots SET is_reserved = 0 WHERE id = ?', (slot_id,)) conn.commit()
+conn.close()
+return 'Reservation cancelled', 200 if	name	== '	main	':
+init_db() app.run(debug=True)
+
+Frontend (HTML)
+
+
+
+3.templates/index.html: html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parking Reservation System</title>
+</head>
+<body>
+
+<h1>Parking Reservation System</h1>
+<div id="slots"></div>
+<script>
+
+async function fetchSlots() {
+const response = await fetch('/slots'); const slots = await response.json();
+const slotsDiv = document.getElementById('slots'); slotsDiv.innerHTML = slots.map(slot => `
+
+<div>
+
+Slot ${slot[1]} - ${slot[2] ? 'Reserved' : 'Available'}
+<button	onclick="reserveSlot(${slot[0]})"	${slot[2]	?	'disabled'	: ''}>Reserve</button>
+<button onclick="cancelReservation(${slot[0]})" ${!slot[2] ? 'disabled'
+: ''}>Cancel</button>
+</div>
+
+`).join('');
+}
+
+
+async function reserveSlot(slotId) { await fetch('/reserve', {
+method: 'POST', headers: {
+'Content-Type': 'application/x-www-form-urlencoded',
+},
+body: `slot_id=${slotId}`,
+});
+fetchSlots();
+}
+
+async function cancelReservation(slotId) { await fetch('/cancel', {
+method: 'POST', headers: {
+'Content-Type': 'application/x-www-form-urlencoded',
+},
+body: `slot_id=${slotId}`,
+
+});
+fetchSlots();
+}
+
+
+fetchSlots();
+</script>
+</body>
+</html>
+
